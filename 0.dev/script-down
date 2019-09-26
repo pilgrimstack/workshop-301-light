@@ -1,4 +1,0 @@
-openstack server delete backend
-openstack server delete frontweb
-sleep 5
-openstack keypair delete gw

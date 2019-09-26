@@ -1,10 +1,8 @@
-This folder represents a test environment. The goal is to automatize it to the maximum to be able to start tests easily. It should also be really close to the production environment.
-
 We'll use an orchestration tool called Terraform. This open source tool from Hashicorp is often used to manage cloud infrastructures. It has an OpenStack driver offering the possibility to speak directly to the APIs and stay standard.
 
 # Target Infrastructure
 
-We still have the backend server with NFS and MySQL to serve data to the 3 frontwebs. In front of the frontwebs, we have a load balancer routing the HTTP requests to the frontwebs.
+We have a backend server with NFS and MySQL to serve data to the 3 frontwebs. In front of the frontwebs, we have a load balancer routing the HTTP requests to the frontwebs.
 
 As we want to run tests, we'll also create some servers to run Apache JMeter. It works with one master and many injectors to load the tested infrastructure.
 
@@ -318,10 +316,3 @@ terraform destroy
 ```
 
 You can confirm and see the magic happening.
-
-# Go to the next step
-
-```bash
-cd ../2.prod
-```
-Let's go to the [production environment](../2.prod) for more fun.
