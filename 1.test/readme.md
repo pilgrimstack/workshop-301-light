@@ -4,19 +4,17 @@ We'll use an orchestration tool called Terraform. This open source tool from Has
 
 We have a backend server with NFS and MySQL to serve data to the 3 frontwebs. In front of the frontwebs, we have a load balancer routing the HTTP requests to the frontwebs.
 
-As we want to run tests, we'll also create some servers to run Apache JMeter. It works with one master and many injectors to load the tested infrastructure.
-
 ![Test architecture](./content/arch.png)
 
 # Exercise
 
-In this exercise we'll see how Terraform works and what its syntax is. We'll also reuse the cloud-init we had in the 0.dev environment and we'll improve it to add the load balancing capability.
+In this exercise we'll see how Terraform works and what its syntax is. We'll also use cloud-init to configure operating systems and add the load balancing capability.
 
 You have some files missing parts and you'll have to complete them. Those parts are **in bold** in the following text and some explanations are given to help you complete it and make it working. Take time to look how each sections of the files are built.
 
 ## main.tf
 
-This is the orchestration for the whole environment in Terraform syntax. The main instructions are in "stress" and "app" modules, called from here.
+This is the orchestration for the whole environment in Terraform syntax. The main instructions are in "app" module, called from here.
 
 This file contains, in order:
 
@@ -33,7 +31,6 @@ This file contains, in order:
   * A module "app"
     * The source code is outside of our 1.test folder to be shared with other potential environments when it's needed
     * Some variables are defined
-  * A module "stress" similar to "app"
 
 > If in doubt, you can have a look at the file main.tf
 >
@@ -42,129 +39,6 @@ This file contains, in order:
 > cp .main.tf main.tf
 > ```
 
-## The stress module
-
-The stress tests run on a JMeter infrastructure made of a master and many workers. The master can distribute its jobs to the workers called "injectors" here. The master needs to know the injectors' addresses in a central configuration file.
-
-We'll start by booting the master, then each injector will annouce their own address to the master configuration file using SSH. So, the injectors should know the master address to connect to. An SSH keypair need to be installed, the private part will be shared by all the injectors to connect to the master which will authorize those connections with the public part of the SSH key pair.
-
-
-### ../terraform-modules/stress/main.tf
-
-This is the stress resources orchestration. It's the occasion to see some simple definitions of resources.
-
-This file contains, in order:
-
-  * Some variables
-  * A "stress-master" instance
-    * Some definitions
-    * The nework definition of Ext-Net
-    * A local-exec provisioner creating the keypair localy
-    * A file provisioner which send a file into the instance
-    * A remote-exec provisioner which executes commands into the created instance
-      * Here we install the SSH public key part
-    * **The user_data definition**
-      * This is the location of the cloud-init file
-      * Before the end of this resource section, add this line:
-        ```
-          user_data = "${file("${path.module}/master.yaml")}"
-        ```
-  * A "stress-injector" resource
-    * **A dependency definition**
-      * The injectors need to know the master is active so they can connect. We'll define a dependancy like that:
-        ```
-          depends_on      = ["openstack_compute_instance_v2.stress-master"]
-        ```
-    * A number of instances started from this template defined by the special "count" variable
-    * A name including a number based on the count variable
-    * Some definitions
-    * A file provisioner which sends a file to the instance
-    * A remote-exec provisioner which executes commands on the instance created
-      * Here we install the SSH private key part
-    * A user_data definition
-    * **A metadata section**
-      * We'll use it to provide the master's ip address to the injectors
-      * This information will be available on the private meta-data server, reachable only from this instance
-      * We'll be able to get this information from inside the instance and we'll do it in the injector.yaml
-      * Here add those lines:
-        ```
-          metadata {
-            master = "${openstack_compute_instance_v2.stress-master.access_ip_v4}"
-          }
-        ```
-
-> If in doubt, you can have a look at the file .main.tf
->
-> If you are really lost, just copy the .main.tf to main.tf
-> ```bash
-> cp ../terraform-modules/stress/.main.tf ../terraform-modules/stress/main.tf
-> ```
-
-### ../terraform-modules/stress/injector.yaml
-
-A cloud-init file with cloud-config syntax to setup the injector servers.
-
-This file contains, in order:
-
-  * An apt update
-  * Some packages installation
-  * A runcmd section
-    * Get the IP of this instance
-    * A configuration in /etc/hosts
-    * **Get the ip_master from the meta-data server**
-      * The meta-data are always served from the link-local address 169.254.169.254
-      * Add this line
-        ```
-         - ip_master=$(curl -s http://169.254.169.254/openstack/latest/meta_data.json | jq .meta.master | sed s'/\"//g')
-        ```
-    * A SSH command to master to inject the IP address in the configuration
-    * Run the jmeter-server binary
-
-> If in doubt, you can have a look at the file .injector.yaml
->
-> If you are really lost, just copy the .injector.yaml to injector.yaml
-> ```bash
-> cp ../terraform-modules/stress/.injector.yaml ../terraform-modules/stress/injector.yaml
-> ```
-
-### ../terraform-modules/stress/master.yaml
-
-A cloud-init file with cloud-config syntax to setup the master server.
-
-Nothing is really interesting here, just have a look if you are curious.
-
-### ../terraform-modules/stress/test_plan.jmx
-
-A JMeter base configuration file, just in case you really want to try. We won't do it in this workshop.
-
-### Start using Terraform booting the stress infrastructure
-
-We need to import the modules. It will be copied into the local .terraform folder as an active copy.
-```bash
-terraform get
-```
-
-To initialize the Terraform environment and especially the providers, run this command:
-```bash
-terraform init
-```
-
-Now we'll see in advance what Terraform plans to do.
-```bash
-terraform plan -target openstack_compute_keypair_v2.gw -target module.stress
-```
-
-Then run it!
-```bash
-terraform apply -target openstack_compute_keypair_v2.gw -target module.stress
-```
-
-Here we asked Terraform to deploy only the keypair and the stress module (bypassing the app module in fact).
-
-Of course you can check it with:
-```bash
-openstack server list
-```
 
 ## The app module
 
@@ -294,12 +168,12 @@ Nothing is really new here.
 
 Again, we'll see in advance what Terraform plans to do.
 ```bash
-terraform plan -target module.app
+terraform plan -target openstack_compute_keypair_v2.gw -target module.app
 ```
 
 Then run it!
 ```bash
-terraform apply -target module.app
+terraform apply -target openstack_compute_keypair_v2.gw -target module.app
 ```
 
 And voilà! Your app is deployed. You can test it by putting the IP address of the loadbalancer in your browser. Reminder how to get the list and IPs of your servers with the CLI:

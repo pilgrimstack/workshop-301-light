@@ -5,7 +5,7 @@ users:
     ssh-authorized-keys:
       - ${ssh_shared_pub_key}
 
-apt_update: true
+apt_update: False
 
 packages:
  - haproxy

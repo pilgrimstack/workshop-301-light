@@ -1,6 +1,6 @@
 #cloud-config
 
-apt_update: true
+apt_update: False
 
 packages:
  - haproxy

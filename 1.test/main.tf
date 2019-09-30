@@ -9,8 +9,3 @@ module "app" {
   frontweb_flavor = "s1-4"
   count = 2
 }
-
-module "stress" {
-  source = "../terraform-modules/stress"
-  count = 2
-}
