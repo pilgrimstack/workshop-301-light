@@ -25,6 +25,7 @@ All requirements have been prepared for you. A server is available with the prop
 
 ```bash
 ssh bounce@xxx.xxx.xxx.xxx
+source credentials
 ```
 
 The IP and the password are provided during the workshop. You have to give a unique ID, it can be your desktop ID or your firstname.name (without accent and space). In case of connection lost, just redo the same.
